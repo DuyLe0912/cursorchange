@@ -1,0 +1,25 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+
+# Virtual environment
+env/
+venv/
+.venv/
+
+# PyInstaller build artifacts
+build/
+dist/
+*.spec
+
+# Personal cursor collection (generated output — not source code)
+cur collection/
+
+# Personal images (optional: remove these lines if you want to share your images)
+images/
+
+# OS
+Thumbs.db
+desktop.ini
+.DS_Store

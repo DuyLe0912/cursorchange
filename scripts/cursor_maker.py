@@ -13,6 +13,7 @@ from tkinter import (
     HORIZONTAL,
     Label,
     Listbox,
+    Radiobutton,
     Scale,
     Scrollbar,
     SINGLE,
@@ -44,18 +45,37 @@ SPI_SETCURSORS = 0x0057
 SPIF_UPDATEINIFILE = 0x0001
 SPIF_SENDCHANGE = 0x0002
 
+# Display label -> registry value name under Control Panel\Cursors
+CURSOR_ROLES = {"Normal Select": "Arrow", "Link Select": "Hand"}
 
-def apply_cursor(cur_path: Path):
+
+def _role_label(value: str) -> str:
+    for label, val in CURSOR_ROLES.items():
+        if val == value:
+            return label
+    return value
+
+
+def apply_cursor(cur_path: Path, role: str = "Arrow"):
     with winreg.OpenKey(
         winreg.HKEY_CURRENT_USER,
         r"Control Panel\Cursors",
         0,
         winreg.KEY_SET_VALUE,
     ) as key:
-        winreg.SetValueEx(key, "Arrow", 0, winreg.REG_EXPAND_SZ, str(cur_path))
+        winreg.SetValueEx(key, role, 0, winreg.REG_EXPAND_SZ, str(cur_path))
     ctypes.windll.user32.SystemParametersInfoW(
         SPI_SETCURSORS, 0, None, SPIF_UPDATEINIFILE | SPIF_SENDCHANGE
     )
+
+
+def build_role_selector(parent: Frame, var: StringVar) -> Frame:
+    frame = Frame(parent)
+    Label(frame, text="Apply to:", font=("Segoe UI", 9)).pack(side="left", padx=(0, 6))
+    for label, value in CURSOR_ROLES.items():
+        Radiobutton(frame, text=label, variable=var, value=value,
+                    font=("Segoe UI", 9)).pack(side="left", padx=2)
+    return frame
 
 
 class BrowseTab:
@@ -64,6 +84,7 @@ class BrowseTab:
         self.preview_img = None
         self.selected_path: Path | None = None
         self._cur_files: list[Path] = []
+        self.target = StringVar(value="Arrow")
         self._build()
         self.refresh()
 
@@ -89,6 +110,8 @@ class BrowseTab:
         self.preview = Label(f, text="No cursor selected", width=18, height=7,
                              relief="groove", bg="#f4f4f4", fg="#888")
         self.preview.pack(pady=8)
+
+        build_role_selector(f, self.target).pack(pady=4)
 
         btn_frame = Frame(f)
         btn_frame.pack(pady=4)
@@ -139,8 +162,9 @@ class BrowseTab:
         if not self.selected_path:
             return
         try:
-            apply_cursor(self.selected_path)
-            self.status.set(f"Applied: {self.selected_path.name}")
+            role_label = _role_label(self.target.get())
+            apply_cursor(self.selected_path, self.target.get())
+            self.status.set(f"Applied {self.selected_path.name} to {role_label}")
         except Exception as e:
             traceback.print_exc()
             messagebox.showerror("Apply failed", f"{type(e).__name__}: {e}")
@@ -152,6 +176,7 @@ class CreateTab:
         self.input_path: Path | None = None
         self.last_output: Path | None = None
         self.preview_img = None
+        self.target = StringVar(value="Arrow")
         self._build()
 
     def _build(self):
@@ -184,6 +209,8 @@ class CreateTab:
         Button(f, text="Convert to .cur", command=self.convert,
                width=24, height=2, bg="#2d7d46", fg="white",
                font=("Segoe UI", 11, "bold")).pack(pady=(10, 4))
+
+        build_role_selector(f, self.target).pack(pady=(8, 0))
 
         self.apply_btn = Button(f, text="Apply as cursor", command=self.apply,
                                 width=24, height=2, bg="#1a5fa8", fg="white",
@@ -236,8 +263,9 @@ class CreateTab:
             messagebox.showwarning("No cursor", "Convert an image first.")
             return
         try:
-            apply_cursor(self.last_output)
-            self.status.set(f"Applied: {self.last_output.name}\nYour cursor is now active!")
+            role_label = _role_label(self.target.get())
+            apply_cursor(self.last_output, self.target.get())
+            self.status.set(f"Applied {self.last_output.name} to {role_label}\nYour cursor is now active!")
         except Exception as e:
             traceback.print_exc()
             messagebox.showerror("Apply failed", f"{type(e).__name__}: {e}")
